@@ -1,54 +1,47 @@
 # Game Library
 
-A private website for tracking a video game collection and wishlist, with prices
+A website for tracking a video game collection and wishlist, with prices
 from DekuDeals, reviews from Metacritic and Backloggd, and play times from
 HowLongToBeat. Each game has a completion percentage and a half-star rating.
+
+It's a static site that runs entirely in your browser, so it works on
+GitHub Pages with no server.
+
+## Where your data lives
+
+Your library is saved **in the browser you use** (IndexedDB). Nothing is
+uploaded, so:
+
+- Other people who open the site see an empty library, not yours.
+- Your phone and laptop each have their own copy. To move or sync, go to
+  **Backup → Download backup** on one device and **Import a backup** on the other.
+- Clearing your browser's site data deletes the library. Download a backup now and then.
 
 ## Structure
 
 ```
-game-library/
-├── app.py               # the website (Flask)
-├── templates/           # page templates
-├── static/style.css     # styling (dark/light follows your device)
-├── db/
-│   ├── schema.sql       # database schema
-│   └── game_library.db  # your data (SQLite, created on first run, not in git)
-├── scripts/
-│   └── init_db.py       # create an empty database (safe to re-run)
-├── requirements.txt
-└── Procfile             # start command for hosting
+├── index.html     # page shell
+├── app.js         # the app: database, pages, prices, reviews, backup
+├── style.css      # styling (dark/light follows your device)
+├── db/schema.sql  # the database structure (tables and fields)
+└── .nojekyll      # tells GitHub Pages to serve files as-is
 ```
+
+## Publish on GitHub Pages
+
+Repo **Settings → Pages → Build and deployment**: Source **Deploy from a branch**,
+branch **main**, folder **/ (root)**, then **Save**. The site appears at
+`https://<username>.github.io/<repo>/` after a minute or two.
 
 ## Run it on your computer
 
-```
-pip install -r requirements.txt
-APP_PASSWORD=choose-a-password python3 app.py
-```
-
-Then open http://localhost:5000. On Windows PowerShell:
+Open a terminal in this folder and run:
 
 ```
-$env:APP_PASSWORD="choose-a-password"; python app.py
+python3 -m http.server 8000
 ```
 
-The database is created automatically the first time the site starts.
-
-## Put it on the web (Railway)
-
-1. On railway.app, create a project → **Deploy from GitHub repo** → pick this repo.
-2. Add a **Volume** to the service, mounted at `/data`.
-3. Under **Variables**, set:
-   - `APP_PASSWORD` — your login password
-   - `SECRET_KEY` — any long random string (keeps you logged in between restarts)
-   - `DB_PATH` — `/data/game_library.db`
-   - `COOKIE_SECURE` — `1`
-4. Under **Settings → Networking**, generate a domain, then open it.
-
-Any host that runs Python with persistent disk works the same way
-(Fly.io with a volume, Render with a disk, or a small VPS). Without a
-persistent volume your data is wiped on every redeploy.
+Then open http://localhost:8000.
 
 ## Using the site
 
@@ -65,6 +58,9 @@ persistent volume your data is wiped on every redeploy.
 
 ## Database overview
 
+The browser database has the same tables and fields as `db/schema.sql`
+(the backup file is these tables as JSON):
+
 | Table | Holds | Source |
 |---|---|---|
 | `games` | title, developer, publisher, release date, cover | all |
@@ -77,5 +73,3 @@ persistent volume your data is wiped on every redeploy.
 | `backloggd_stats` | average rating and community counts | Backloggd |
 | `hltb_times` | main, main + extras, completionist, all styles (hours) | HowLongToBeat |
 | `reviews` | individual critic/user reviews | Metacritic, Backloggd |
-
-The `library_overview` view joins it all into one row per library entry.

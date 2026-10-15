@@ -185,3 +185,10 @@ summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .9
   .top { padding: 10px 16px; gap: 10px; }
   .top-actions { margin-left: 0; width: 100%; justify-content: space-between; }
 }
+
+/* backup page */
+.data-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.pad { padding: 16px 18px; }
+.pad p { margin: 0 0 12px; }
+.pad .btn.danger { width: auto; border-color: var(--line); }
+label.btn { cursor: pointer; }

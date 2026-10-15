@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Game Library</title>
+  <meta name="description" content="Track a video game collection and wishlist: prices, reviews, play times, completion and ratings.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#/collection">Game Library</a>
+    <nav>
+      <a href="#/collection" data-nav="collection">Collection</a>
+      <a href="#/wishlist" data-nav="wishlist">Wishlist</a>
+      <a href="#/data" data-nav="data">Backup</a>
+    </nav>
+    <div class="top-actions">
+      <a class="btn primary" id="add-link" href="#/new?list=collection">+ Add game</a>
+    </div>
+  </header>
+  <main id="app"><noscript><div class="empty card">This site needs JavaScript turned on.</div></noscript></main>
+  <script src="app.js"></script>
+</body>
+</html>
