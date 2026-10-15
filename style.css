@@ -192,3 +192,6 @@ summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .9
 .pad p { margin: 0 0 12px; }
 .pad .btn.danger { width: auto; border-color: var(--line); }
 label.btn { cursor: pointer; }
+
+.flash.info { background: var(--info-bg); color: var(--info); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.flash-actions { display: flex; gap: 8px; flex-wrap: wrap; }

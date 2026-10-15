@@ -48,7 +48,9 @@ class FormError extends Error {}
 // ------------------------------------------------------------------- storage
 
 function emptyDb() {
-  const db = { format: FORMAT, version: 1, seq: {}, last_backup_at: null };
+  // saved_at: when this library file was exported; based_on: the saved_at of the site's
+  // data file this browser last loaded; dirty: changed in this browser since then.
+  const db = { format: FORMAT, version: 1, seq: {}, last_backup_at: null, saved_at: null, based_on: null, dirty: false };
   for (const t of TABLES) db[t] = [];
   return db;
 }
@@ -127,6 +129,7 @@ async function persist() {
 async function mutate(fn) {
   const draft = structuredClone(D);
   const result = fn(draft);
+  draft.dirty = true;
   D = draft;
   await persist();
   return result;
@@ -504,6 +507,7 @@ function formFromDb(db, entry) {
 
 let flashMsg = null;
 let scrollTarget = null;
+let remoteNewer = null;
 function flash(msg, kind = 'ok') { flashMsg = { msg, kind }; }
 
 function viewList(listType, params) {
@@ -773,21 +777,23 @@ function viewData() {
   return `<div class="page-head"><h1>Backup &amp; data</h1></div>
   <div class="data-grid">
     <section class="card pad"><h2>Where your data is</h2>
-      <p>Your library is saved in <b>${where}</b>. It isn't uploaded anywhere, so other people who open
-      this site see an empty library, and your other devices don't see these games until you import a backup there.</p>
+      <p>The site loads your library from <b>data/library.json</b> in the GitHub repo. Changes you make here
+      are saved in <b>${where}</b> only, until you put an updated file in the repo.</p>
       <p class="muted">${games} games · ${entries} library entries · ${prices} price records</p>
-      <p class="muted">Last backup: ${D.last_backup_at ? esc(D.last_backup_at.slice(0, 10)) : 'never'}</p>
+      <p class="muted">${D.dirty ? '<b>This browser has changes that aren\'t in the repo yet.</b>' : 'Matches the repo\'s library file.'}
+        ${D.based_on ? ` · Repo file from ${esc(D.based_on.slice(0, 10))}` : ''}</p>
     </section>
-    <section class="card pad"><h2>Export a backup</h2>
-      <p>Downloads everything as one file. Do this now and then, and before clearing your browser data.</p>
-      <button class="btn primary" data-click="export">Download backup</button>
+    <section class="card pad"><h2>Save changes to the site</h2>
+      <p>Downloads your library as <b>library.json</b>. To make it the site's library on every device,
+      upload it to the repo's <b>data</b> folder on GitHub, replacing the old file (or ask Claude to commit it).</p>
+      <button class="btn primary" data-click="export">Download library.json</button>
     </section>
     <section class="card pad"><h2>Import a backup</h2>
       <p>Replaces the library in this browser with the one in the file. Use it to restore, or to move your library to another device.</p>
       <label class="btn">Choose backup file…<input type="file" accept=".json,application/json" data-change="import" hidden></label>
     </section>
     <section class="card pad"><h2>Start over</h2>
-      <p>Deletes every game from this browser. Export a backup first if you might want it back.</p>
+      <p>Deletes every game from this browser. The repo's library file loads again the next time you open the site.</p>
       <button class="btn danger" data-click="erase">Erase all data</button>
     </section>
   </div>`;
@@ -830,8 +836,14 @@ function render(overrideHtml) {
   const addLink = document.getElementById('add-link');
   if (addLink) addLink.href = `#/new?list=${active === 'wishlist' ? 'wishlist' : 'collection'}`;
 
-  const banner = storage.mode === 'memory'
+  let banner = storage.mode === 'memory'
     ? `<div class="flash error">This browser isn't letting the site save data (private mode?). Changes are lost when you close the tab.</div>` : '';
+  if (remoteNewer) {
+    banner += `<div class="flash info">A newer library (from ${esc((remoteNewer.saved_at || '').slice(0, 10))}) is on the site,
+      but this browser has its own unsaved changes.
+      <span class="flash-actions"><button class="btn" data-click="use-remote">Load the site's library</button>
+      <button class="btn ghost" data-click="keep-local">Keep this browser's</button></span></div>`;
+  }
   const msg = flashMsg ? `<div class="flash ${flashMsg.kind}" role="status">${esc(flashMsg.msg)}</div>` : '';
   flashMsg = null;
   document.getElementById('app').innerHTML = banner + msg + html;
@@ -933,18 +945,37 @@ document.addEventListener('input', e => {
 document.addEventListener('click', async e => {
   const btn = e.target.closest('[data-click]');
   if (!btn) return;
-  if (btn.dataset.click === 'export') {
-    D.last_backup_at = nowStamp();
+  if (btn.dataset.click === 'use-remote' && remoteNewer) {
+    D = remoteNewer;
+    D.based_on = D.saved_at;
+    D.dirty = false;
+    remoteNewer = null;
     await persist();
-    const blob = new Blob([JSON.stringify(D, null, 1)], { type: 'application/json' });
+    flash("Loaded the site's library.");
+    render();
+  } else if (btn.dataset.click === 'keep-local' && remoteNewer) {
+    D.based_on = remoteNewer.saved_at;
+    remoteNewer = null;
+    await persist();
+    flash("Kept this browser's library. Download library.json from Backup to put it on the site.");
+    render();
+  } else if (btn.dataset.click === 'export') {
+    const stamp = nowStamp();
+    D.last_backup_at = stamp;
+    D.saved_at = stamp;
+    D.based_on = stamp;
+    D.dirty = false;
+    await persist();
+    const { dirty, based_on, ...file } = D;
+    const blob = new Blob([JSON.stringify(file, null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `game-library-backup-${today()}.json`;
+    a.download = 'library.json';
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    flash('Backup downloaded.');
+    flash('library.json downloaded. Upload it to the repo\'s data folder to update the site.');
     render();
   } else if (btn.dataset.click === 'erase') {
     if (!confirm('Delete every game in this browser? This cannot be undone.')) return;
@@ -964,6 +995,9 @@ document.addEventListener('change', async e => {
     const n = parsed.library_entries.length;
     if (!confirm(`Replace the library in this browser with the backup (${n} entries)?`)) return;
     D = parsed;
+    D.based_on = parsed.saved_at || null;
+    D.dirty = !parsed.saved_at;
+    remoteNewer = null;
     await persist();
     flash(`Backup imported: ${n} entries.`);
   } catch (err) {
@@ -997,4 +1031,31 @@ channel?.addEventListener('message', async () => {
   }
   if (!location.hash) history.replaceState(null, '', '#/collection');
   render();
+  await syncFromSite();
 })();
+
+/** Load the library file published with the site (data/library.json) when it's newer. */
+async function syncFromSite() {
+  let remote;
+  try {
+    const res = await fetch('data/library.json', { cache: 'no-cache' });
+    if (!res.ok) return;
+    remote = normalizeDb(await res.json());
+  } catch { return; }
+  if (!remote || !remote.saved_at) return;
+  const isEmpty = D.library_entries.length === 0;
+  const newer = remote.saved_at > (D.based_on || '');
+  if (!newer && !isEmpty) return;
+  if (isEmpty || !D.dirty) {
+    const wasEmpty = isEmpty;
+    D = remote;
+    D.based_on = remote.saved_at;
+    D.dirty = false;
+    await persist();
+    if (!wasEmpty) flash("Loaded the latest library from the site.");
+  } else {
+    remoteNewer = remote;
+  }
+  const editing = document.activeElement?.closest('form');
+  if (!editing) render();
+}

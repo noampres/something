@@ -9,13 +9,19 @@ GitHub Pages with no server.
 
 ## Where your data lives
 
-Your library is saved **in the browser you use** (IndexedDB). Nothing is
-uploaded, so:
+Your library is stored in **`data/library.json`** in this repo. Any browser or
+device that opens the site loads it automatically. The repo is public, so
+anyone with the link can see the list.
 
-- Other people who open the site see an empty library, not yours.
-- Your phone and laptop each have their own copy. To move or sync, go to
-  **Backup → Download backup** on one device and **Import a backup** on the other.
-- Clearing your browser's site data deletes the library. Download a backup now and then.
+Changes you make on the site are saved **in that browser** until you publish them:
+
+1. On the site, go to **Backup → Download library.json**.
+2. On GitHub, open the `data` folder → **Add file → Upload files**, drop in
+   `library.json`, and commit. The site updates within a minute or two.
+
+When a browser opens the site and the repo has a newer file:
+- with no unsaved changes in that browser, it loads the new file automatically;
+- with unsaved changes, it asks whether to load the site's library or keep its own.
 
 ## Structure
 
@@ -23,6 +29,7 @@ uploaded, so:
 ├── index.html     # page shell
 ├── app.js         # the app: database, pages, prices, reviews, backup
 ├── style.css      # styling (dark/light follows your device)
+├── data/library.json  # your library (loaded automatically)
 ├── db/schema.sql  # the database structure (tables and fields)
 └── .nojekyll      # tells GitHub Pages to serve files as-is
 ```
