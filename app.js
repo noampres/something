@@ -327,8 +327,16 @@ function recordPrice(db, gameId, platformId, data) {
     return false;
   }
   const current = data.current_price, regular = data.regular_price;
+  // A single price says nothing about the all-time low, so only track it once there's history.
   let low = last?.historical_low ?? null, lowDate = last?.historical_low_date ?? null;
-  if (current != null && (low == null || current < low)) { low = current; lowDate = today(); }
+  if (last) {
+    const seen = [low, last.current_price].filter(v => v != null);
+    if (seen.length && (low == null || Math.min(...seen) < low)) {
+      low = Math.min(...seen);
+      lowDate = low === last.current_price ? (last.fetched_at || '').slice(0, 10) : lowDate;
+    }
+    if (current != null && (low == null || current < low)) { low = current; lowDate = today(); }
+  }
   const discount = current != null && regular && current < regular ? Math.round((1 - current / regular) * 1000) / 10 : 0;
   insertRow(db, 'prices', {
     game_id: gameId, platform_id: platformId, store: data.store, format: data.format, region: 'US',
@@ -412,8 +420,7 @@ function priceSummary(db, gameId) {
   const seen = new Set();
   for (const p of all) if (!seen.has(p.store)) { seen.add(p.store); latest.push(p); }
   const currents = latest.map(p => p.current_price).filter(v => v != null);
-  const lows = all.map(p => p.historical_low != null && (p.current_price == null || p.historical_low < p.current_price)
-    ? p.historical_low : p.current_price).filter(v => v != null);
+  const lows = all.map(p => p.historical_low).filter(v => v != null);
   const discounts = latest.map(p => p.discount_percent).filter(v => v != null);
   return {
     all, latest,
